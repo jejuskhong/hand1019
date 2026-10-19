@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediaPipe 손가락 마디 인식 & 펴진 손가락 카운터</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.4);
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    p.description {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    button:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      background-color: #475569;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .status-badge {
+      font-size: 0.9rem;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background-color: #334155;
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+
+    .status-badge.ready {
+      background-color: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid #059669;
+    }
+
+    .status-badge.loading {
+      background-color: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid #d97706;
+    }
+
+    .status-badge.error {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid #dc2626;
+    }
+
+    /* 메인 콘텐츠 영역: 카메라 뷰 + 오른쪽 대형 카운터 패널 */
+    .workspace {
+      display: flex;
+      gap: 20px;
+      align-items: stretch;
+      justify-content: center;
+      max-width: 1040px;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+
+    /* 비디오 및 오버레이 캔버스 컨테이너 */
+    .view-container {
+      position: relative;
+      flex: 1 1 560px;
+      max-width: 640px;
+      min-height: 420px;
+      background-color: var(--card-bg);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 거울처럼 좌우 반전 (scaleX(-1)) */
+    #webcam {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transform: scaleX(-1);
+      background-color: #000;
+    }
+
+    #output_canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transform: scaleX(-1);
+      pointer-events: none;
+    }
+
+    .placeholder-msg {
+      color: var(--text-muted);
+      font-size: 1rem;
+      text-align: center;
+      padding: 20px;
+      position: absolute;
+      z-index: 1;
+    }
+
+    /* 화면 오른쪽: 아주 큰 숫자 표시 패널 */
+    .counter-panel {
+      flex: 0 0 280px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .counter-header {
+      text-align: center;
+    }
+
+    .counter-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+
+    .counter-subtitle {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* 아주 큰 숫자 디스플레이 */
+    .big-number-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      margin: 20px 0;
+    }
+
+    .big-number {
+      font-size: 130px;
+      font-weight: 900;
+      line-height: 1;
+      color: var(--accent);
+      text-shadow: 0 0 25px var(--accent-glow), 0 0 50px rgba(16, 185, 129, 0.2);
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .big-number.inactive {
+      color: #475569;
+      text-shadow: none;
+    }
+
+    .big-number.pulse {
+      transform: scale(1.12);
+    }
+
+    /* 손 모양 이름 디스플레이 (손가락 숫자 아래 크게 표시) */
+    .gesture-display-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 52px;
+      margin-bottom: 12px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 12px;
+      padding: 6px 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .big-gesture-text {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #38bdf8;
+      letter-spacing: -0.5px;
+      text-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-align: center;
+    }
+
+    .big-gesture-text.inactive {
+      color: #64748b;
+      text-shadow: none;
+    }
+
+    .big-gesture-text.pop {
+      transform: scale(1.1);
+    }
+
+    /* 개별 손가락 상태 칩 */
+    .finger-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .finger-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: #0f172a;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      border: 1px solid #1e293b;
+      transition: all 0.2s ease;
+    }
+
+    .finger-item.active {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: #059669;
+      color: #6ee7b7;
+      font-weight: 600;
+    }
+
+    .finger-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #475569;
+      transition: all 0.2s ease;
+    }
+
+    .finger-item.active .finger-status-dot {
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    /* 하단 상태바 */
+    .info-card {
+      margin-top: 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      max-width: 1040px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-highlight {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .status-danger {
+      color: var(--danger);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🖐️ 손가락 마디 인식 & 펴진 손가락 카운터</h1>
+    <p class="description">실시간 21개 관절 랜드마크 분석 및 손가락 개수 판정</p>
+  </header>
+
+  <div class="controls">
+    <button id="webcamButton" disabled>
+      <span>카메라 켜기</span>
+    </button>
+    <div id="statusBadge" class="status-badge loading">인공지능 모델 다운로드 중...</div>
+  </div>
+
+  <div class="workspace">
+    <!-- 왼쪽: 비디오 및 스켈레톤 오버레이 -->
+    <div class="view-container">
+      <div id="placeholder" class="placeholder-msg">
+        모델 준비가 완료되면 '카메라 켜기' 버튼을 눌러주세요.
+      </div>
+      <video id="webcam" playsinline autoplay muted></video>
+      <canvas id="output_canvas"></canvas>
+    </div>
+
+    <!-- 오른쪽: 아주 큰 숫자 디스플레이 -->
+    <div class="counter-panel">
+      <div class="counter-header">
+        <div class="counter-title">펴진 손가락 개수</div>
+        <div class="counter-subtitle">0.3초 안정화 필터 적용</div>
+      </div>
+
+      <div class="big-number-box">
+        <div id="bigFingerCount" class="big-number inactive">-</div>
+      </div>
+
+      <!-- 손 모양 이름 (손가락 숫자 아래 크게 표시) -->
+      <div class="gesture-display-box">
+        <div id="bigGestureName" class="big-gesture-text inactive">-</div>
+      </div>
+
+      <!-- 손가락별 개별 펴짐 상태 -->
+      <div class="finger-list">
+        <div id="fingerThumb" class="finger-item">
+          <span>엄지 (4번)</span>
+          <span class="finger-status-dot"></span>
+        </div>
+        <div id="fingerIndex" class="finger-item">
+          <span>검지 (8번)</span>
+          <span class="finger-status-dot"></span>
+        </div>
+        <div id="fingerMiddle" class="finger-item">
+          <span>중지 (12번)</span>
+          <span class="finger-status-dot"></span>
+        </div>
+        <div id="fingerRing" class="finger-item">
+          <span>약지 (16번)</span>
+          <span class="finger-status-dot"></span>
+        </div>
+        <div id="fingerPinky" class="finger-item">
+          <span>새끼 (20번)</span>
+          <span class="finger-status-dot"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 하단 정보 카드 -->
+  <div class="info-card">
+    <div>손 인식: <span id="handStatus" class="status-danger">미감지</span></div>
+    <div>제스처: <span id="gestureName" class="status-highlight">-</span></div>
+    <div>실시간 FPS: <span id="fpsVal">0</span></div>
+  </div>
+
+  <script type="module">
+    import {
+      GestureRecognizer,
+      FilesetResolver,
+      DrawingUtils
+    } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs";
+
+    const video = document.getElementById("webcam");
+    const canvasElement = document.getElementById("output_canvas");
+    const canvasCtx = canvasElement.getContext("2d");
+    const webcamButton = document.getElementById("webcamButton");
+    const statusBadge = document.getElementById("statusBadge");
+    const placeholder = document.getElementById("placeholder");
+    const handStatus = document.getElementById("handStatus");
+    const gestureName = document.getElementById("gestureName");
+    const fpsVal = document.getElementById("fpsVal");
+
+    // 오른쪽 카운터 UI 요소
+    const bigFingerCount = document.getElementById("bigFingerCount");
+    const bigGestureName = document.getElementById("bigGestureName");
+    const fingerThumb = document.getElementById("fingerThumb");
+    const fingerIndex = document.getElementById("fingerIndex");
+    const fingerMiddle = document.getElementById("fingerMiddle");
+    const fingerRing = document.getElementById("fingerRing");
+    const fingerPinky = document.getElementById("fingerPinky");
+
+    // 손 모양 제스처 한글 및 이모지 매핑
+    const GESTURE_NAME_MAP = {
+      "Closed_Fist": "✊ 주먹",
+      "Open_Palm": "✋ 보",
+      "Pointing_Up": "☝️ 하나",
+      "Victory": "✌️ 브이",
+      "Thumb_Up": "👍 최고",
+      "Thumb_Down": "👎 별로",
+      "ILoveYou": "🤟 사랑해"
+    };
+
+    // 21개 랜드마크 연결선 정의
+    const HAND_CONNECTIONS = GestureRecognizer.HAND_CONNECTIONS || [
+      { start: 0, end: 1 }, { start: 1, end: 2 }, { start: 2, end: 3 }, { start: 3, end: 4 }, // 엄지
+      { start: 0, end: 5 }, { start: 5, end: 6 }, { start: 6, end: 7 }, { start: 7, end: 8 }, // 검지
+      { start: 5, end: 9 }, { start: 9, end: 10 }, { start: 10, end: 11 }, { start: 11, end: 12 }, // 중지
+      { start: 9, end: 13 }, { start: 13, end: 14 }, { start: 14, end: 15 }, { start: 15, end: 16 }, // 약지
+      { start: 13, end: 17 }, { start: 17, end: 18 }, { start: 18, end: 19 }, { start: 19, end: 20 }, // 새끼
+      { start: 0, end: 17 } // 손바닥 밑
+    ];
+
+    let gestureRecognizer = null;
+    let isWebcamRunning = false;
+    let lastTimestampMs = 0;
+    let drawingUtils = null;
+    let frameCount = 0;
+    let lastFpsUpdate = performance.now();
+
+    // 손가락 개수 및 손 모양 0.3초(300ms) 유지 디바운스 상태 변수
+    let candidateCount = null;
+    let candidateStartTime = 0;
+    let stableCount = "-";
+
+    let candidateGesture = null;
+    let candidateGestureStartTime = 0;
+    let stableGesture = "-";
+
+    const STABLE_DURATION_MS = 300; // 0.3초 유지 조건
+
+    // 두 점 사이의 2D 유클리드 거리 계산 함수
+    function getDistance(p1, p2) {
+      return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    }
+
+    /**
+     * 손가락 펴짐 판정 알고리즘 (요구 조건 충족):
+     * 1. 엄지: 손끝(4번 점)이 새끼손가락 뿌리(17번 점)에서 엄지 둘째 마디(3번 점)보다 멀면 펴짐
+     * 2. 나머지 손가락(검지, 중지, 약지, 새끼):
+     *    손끝(8, 12, 16, 20번 점)이 손목(0번 점)에서 둘째 마디(6, 10, 14, 18번 점)보다 멀면 펴짐
+     */
+    function evaluateExtendedFingers(landmarks) {
+      let count = 0;
+      const status = {
+        thumb: false,
+        index: false,
+        middle: false,
+        ring: false,
+        pinky: false
+      };
+
+      // 엄지 (손끝: 4, 둘째 마디: 3, 새끼손가락 뿌리: 17)
+      const distThumbTipToPinkyRoot = getDistance(landmarks[4], landmarks[17]);
+      const distThumbPipToPinkyRoot = getDistance(landmarks[3], landmarks[17]);
+      if (distThumbTipToPinkyRoot > distThumbPipToPinkyRoot) {
+        count++;
+        status.thumb = true;
+      }
+
+      // 검지 (손끝: 8, 둘째 마디: 6, 손목: 0)
+      if (getDistance(landmarks[8], landmarks[0]) > getDistance(landmarks[6], landmarks[0])) {
+        count++;
+        status.index = true;
+      }
+
+      // 중지 (손끝: 12, 둘째 마디: 10, 손목: 0)
+      if (getDistance(landmarks[12], landmarks[0]) > getDistance(landmarks[10], landmarks[0])) {
+        count++;
+        status.middle = true;
+      }
+
+      // 약지 (손끝: 16, 둘째 마디: 14, 손목: 0)
+      if (getDistance(landmarks[16], landmarks[0]) > getDistance(landmarks[14], landmarks[0])) {
+        count++;
+        status.ring = true;
+      }
+
+      // 새끼 (손끝: 20, 둘째 마디: 18, 손목: 0)
+      if (getDistance(landmarks[20], landmarks[0]) > getDistance(landmarks[18], landmarks[0])) {
+        count++;
+        status.pinky = true;
+      }
+
+      return { count, status };
+    }
+
+    /**
+     * 0.3초 이상 같은 개수가 유지될 때만 화면 숫자를 변경하는 디바운스 로직
+     */
+    function updateStabilizedFingerCount(currentRawCount, currentTimeMs) {
+      if (currentRawCount === null) {
+        // 손이 감지되지 않는 경우
+        if (candidateCount !== null) {
+          candidateCount = null;
+          candidateStartTime = currentTimeMs;
+        } else if (currentTimeMs - candidateStartTime >= STABLE_DURATION_MS) {
+          if (stableCount !== "-") {
+            stableCount = "-";
+            renderBigNumber(stableCount);
+          }
+        }
+      } else {
+        // 손가락 개수가 감지된 경우
+        if (candidateCount !== currentRawCount) {
+          candidateCount = currentRawCount;
+          candidateStartTime = currentTimeMs;
+        } else if (currentTimeMs - candidateStartTime >= STABLE_DURATION_MS) {
+          const newStableStr = String(candidateCount);
+          if (stableCount !== newStableStr) {
+            stableCount = newStableStr;
+            renderBigNumber(stableCount);
+          }
+        }
+      }
+    }
+
+    // 대형 숫자 렌더링 및 펄스 애니메이션
+    function renderBigNumber(valueStr) {
+      bigFingerCount.textContent = valueStr;
+      if (valueStr === "-") {
+        bigFingerCount.classList.add("inactive");
+      } else {
+        bigFingerCount.classList.remove("inactive");
+        bigFingerCount.classList.add("pulse");
+        setTimeout(() => bigFingerCount.classList.remove("pulse"), 150);
+      }
+    }
+
+    /**
+     * 0.3초 이상 같은 손 모양(제스처)이 유지될 때만 화면 이름을 변경하는 디바운스 로직
+     */
+    function updateStabilizedGesture(rawCategory, currentTimeMs) {
+      const mapped = rawCategory ? (GESTURE_NAME_MAP[rawCategory] || rawCategory) : "-";
+
+      if (rawCategory === null) {
+        // 손이 감지되지 않음
+        if (candidateGesture !== null) {
+          candidateGesture = null;
+          candidateGestureStartTime = currentTimeMs;
+        } else if (currentTimeMs - candidateGestureStartTime >= STABLE_DURATION_MS) {
+          if (stableGesture !== "-") {
+            stableGesture = "-";
+            renderBigGesture(stableGesture);
+          }
+        }
+      } else {
+        // 제스처 감지됨
+        if (candidateGesture !== mapped) {
+          candidateGesture = mapped;
+          candidateGestureStartTime = currentTimeMs;
+        } else if (currentTimeMs - candidateGestureStartTime >= STABLE_DURATION_MS) {
+          if (stableGesture !== candidateGesture) {
+            stableGesture = candidateGesture;
+            renderBigGesture(stableGesture);
+          }
+        }
+      }
+    }
+
+    // 대형 손 모양 이름 렌더링 및 팝 애니메이션
+    function renderBigGesture(gestureStr) {
+      bigGestureName.textContent = gestureStr;
+      if (gestureStr === "-") {
+        bigGestureName.classList.add("inactive");
+      } else {
+        bigGestureName.classList.remove("inactive");
+        bigGestureName.classList.add("pop");
+        setTimeout(() => bigGestureName.classList.remove("pop"), 180);
+      }
+    }
+
+    // 개별 손가락 칩 활성화/비활성화 UI 반영
+    function updateFingerChips(status) {
+      fingerThumb.classList.toggle("active", !!status?.thumb);
+      fingerIndex.classList.toggle("active", !!status?.index);
+      fingerMiddle.classList.toggle("active", !!status?.middle);
+      fingerRing.classList.toggle("active", !!status?.ring);
+      fingerPinky.classList.toggle("active", !!status?.pinky);
+    }
+
+    // 1. MediaPipe GestureRecognizer 초기화
+    async function initGestureRecognizer() {
+      try {
+        statusBadge.textContent = "WASM 및 모델 다운로드 중...";
+        statusBadge.className = "status-badge loading";
+
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
+        );
+
+        const modelUrl = "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
+
+        try {
+          // GPU 우선
+          gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: modelUrl,
+              delegate: "GPU"
+            },
+            runningMode: "VIDEO",
+            numHands: 1,
+            minHandDetectionConfidence: 0.3,
+            minHandPresenceConfidence: 0.3,
+            minTrackingConfidence: 0.3
+          });
+          statusBadge.textContent = "모델 준비 완료 (GPU)";
+        } catch (gpuErr) {
+          console.warn("GPU 실패, CPU 모드로 폴백:", gpuErr);
+          gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: modelUrl,
+              delegate: "CPU"
+            },
+            runningMode: "VIDEO",
+            numHands: 1,
+            minHandDetectionConfidence: 0.3,
+            minHandPresenceConfidence: 0.3,
+            minTrackingConfidence: 0.3
+          });
+          statusBadge.textContent = "모델 준비 완료 (CPU)";
+        }
+
+        drawingUtils = new DrawingUtils(canvasCtx);
+        statusBadge.className = "status-badge ready";
+        webcamButton.disabled = false;
+      } catch (err) {
+        console.error("GestureRecognizer 초기화 실패:", err);
+        statusBadge.textContent = "모델 로드 실패 (" + err.message + ")";
+        statusBadge.className = "status-badge error";
+      }
+    }
+
+    // 2. 카메라 토글
+    async function toggleWebcam() {
+      if (!gestureRecognizer) {
+        alert("모델이 아직 준비 중입니다. 잠시만 기다려 주세요.");
+        return;
+      }
+
+      if (isWebcamRunning) {
+        // 카메라 끄기
+        const stream = video.srcObject;
+        if (stream) {
+          stream.getTracks().forEach(t => t.stop());
+          video.srcObject = null;
+        }
+        isWebcamRunning = false;
+        webcamButton.innerHTML = "<span>카메라 켜기</span>";
+        placeholder.style.display = "block";
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        handStatus.textContent = "미감지";
+        handStatus.className = "status-danger";
+        gestureName.textContent = "-";
+        fpsVal.textContent = "0";
+
+        // 상태 초기화
+        candidateCount = null;
+        stableCount = "-";
+        candidateGesture = null;
+        stableGesture = "-";
+        renderBigNumber("-");
+        renderBigGesture("-");
+        updateFingerChips(null);
+        return;
+      }
+
+      // 카메라 켜기
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("카메라(getUserMedia)를 사용할 수 없습니다.\n브라우저 권한을 확인해 주세요.");
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: "user"
+          }
+        });
+
+        video.srcObject = stream;
+        await video.play();
+
+        isWebcamRunning = true;
+        webcamButton.innerHTML = "<span>카메라 끄기</span>";
+        placeholder.style.display = "none";
+
+        lastTimestampMs = 0;
+        requestAnimationFrame(predictLoop);
+      } catch (err) {
+        console.error("카메라 권한 오류:", err);
+        alert("카메라를 켤 수 없습니다: " + err.message);
+      }
+    }
+
+    // 3. 실시간 추론 및 렌더링 루프
+    function predictLoop() {
+      if (!isWebcamRunning) return;
+
+      try {
+        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+          // 캔버스 크기 비디오 해상도와 동기화
+          if (canvasElement.width !== video.videoWidth || canvasElement.height !== video.videoHeight) {
+            canvasElement.width = video.videoWidth;
+            canvasElement.height = video.videoHeight;
+          }
+
+          const currentTimestampMs = performance.now();
+          if (currentTimestampMs > lastTimestampMs) {
+            lastTimestampMs = currentTimestampMs;
+
+            // MediaPipe 실시간 프레임 추론
+            const results = gestureRecognizer.recognizeForVideo(video, currentTimestampMs);
+
+            // 캔버스 클리어
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            // FPS 측정
+            frameCount++;
+            if (currentTimestampMs - lastFpsUpdate >= 1000) {
+              fpsVal.textContent = String(frameCount);
+              frameCount = 0;
+              lastFpsUpdate = currentTimestampMs;
+            }
+
+            // 손 검출 확인
+            if (results && results.landmarks && results.landmarks.length > 0) {
+              const landmarks = results.landmarks[0];
+              handStatus.textContent = "감지됨 (21개 마디)";
+              handStatus.className = "status-highlight";
+
+              // 1) 스켈레톤 선 그리기 (네온 그린)
+              if (drawingUtils && drawingUtils.drawConnectors) {
+                drawingUtils.drawConnectors(landmarks, HAND_CONNECTIONS, {
+                  color: "#00FF7F",
+                  lineWidth: 4
+                });
+              }
+
+              // 2) 21개 관절 점 그리기 (선명한 핫핑크)
+              if (drawingUtils && drawingUtils.drawLandmarks) {
+                drawingUtils.drawLandmarks(landmarks, {
+                  color: "#FF1493",
+                  fillColor: "#FFFFFF",
+                  lineWidth: 2,
+                  radius: 5
+                });
+              }
+
+              // 3) 손가락 펴짐 개수 계산 (요구 조건 충족)
+              const evaluation = evaluateExtendedFingers(landmarks);
+              updateStabilizedFingerCount(evaluation.count, currentTimestampMs);
+              updateFingerChips(evaluation.status);
+
+              // 4) 손 모양(제스처) 판정 및 손가락 숫자 아래 크게 표시
+              let detectedCategory = null;
+              if (results.gestures && results.gestures.length > 0 && results.gestures[0].length > 0) {
+                const gesture = results.gestures[0][0];
+                detectedCategory = gesture.categoryName;
+                const koreanName = GESTURE_NAME_MAP[detectedCategory] || detectedCategory;
+                gestureName.textContent = `${koreanName} (${Math.round(gesture.score * 100)}%)`;
+              } else {
+                gestureName.textContent = `손가락 ${evaluation.count}개 펴짐`;
+              }
+              updateStabilizedGesture(detectedCategory, currentTimestampMs);
+            } else {
+              // 손 미감지
+              handStatus.textContent = "손 찾는 중...";
+              handStatus.className = "status-danger";
+              gestureName.textContent = "-";
+              updateStabilizedFingerCount(null, currentTimestampMs);
+              updateStabilizedGesture(null, currentTimestampMs);
+              updateFingerChips(null);
+            }
+          }
+        }
+      } catch (loopErr) {
+        console.error("추론 루프 예외:", loopErr);
+      }
+
+      // 지속적인 다음 프레임 루프
+      requestAnimationFrame(predictLoop);
+    }
+
+    webcamButton.addEventListener("click", toggleWebcam);
+
+    // 페이지 로드 시 모델 초기화
+    initGestureRecognizer();
+  </script>
+</body>
+</html>

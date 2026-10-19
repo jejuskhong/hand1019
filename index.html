@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>홍수경의 자기소개</title>
+  <!-- 구글 폰트(Noto Sans KR) 불러오기 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* 전체 기본 스타일 */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #FFF9F3; /* 부드럽고 따뜻한 감귤빛 배경 */
+      color: #333333;
+      line-height: 1.7;
+      padding: 24px 16px;
+    }
+
+    /* 화면 전체를 감싸는 컨테이너 (모바일 및 데스크톱 대응) */
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    /* 1. 상단 프로필 헤더 (제주 바다 배너 적용) */
+    .header {
+      text-align: center;
+      background: #FFFFFF;
+      border-radius: 24px;
+      box-shadow: 0 4px 20px rgba(255, 122, 0, 0.08);
+      border: 2px solid #FFE6D0;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .banner-container {
+      position: relative;
+      width: 100%;
+      height: 220px;
+      overflow: hidden;
+      background-color: #E2F1F8;
+    }
+
+    @media (max-width: 480px) {
+      .banner-container {
+        height: 170px;
+      }
+    }
+
+    .banner-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.4s ease;
+    }
+
+    .header:hover .banner-img {
+      transform: scale(1.03);
+    }
+
+    .banner-tag {
+      position: absolute;
+      bottom: 12px;
+      right: 14px;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      color: #FFFFFF;
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .header-content {
+      padding: 16px 24px 32px;
+      position: relative;
+    }
+
+    .badge-icon {
+      font-size: 2.8rem;
+      margin-top: -52px;
+      background: #FFFFFF;
+      width: 76px;
+      height: 76px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      border: 3px solid #FFF5EB;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .name {
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: #FF6B00; /* 상큼한 감귤 주황색 */
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .intro-line {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #555555;
+      word-break: keep-all;
+    }
+
+    /* 2. 공통 섹션 제목 */
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #D45500;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 3. 신청 이유 박스 */
+    .reason-box {
+      background: #FFFFFF;
+      padding: 26px 22px;
+      border-radius: 20px;
+      border-left: 6px solid #FF7A00;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+      margin-bottom: 28px;
+    }
+
+    .reason-text {
+      font-size: 1.15rem;
+      font-weight: 500;
+      color: #444444;
+      word-break: keep-all;
+    }
+
+    /* 4. 관심사 카드 목록 (그리드) */
+    .interests-container {
+      margin-bottom: 32px;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 600px) {
+      .cards-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .card {
+      background: #FFFFFF;
+      padding: 24px 20px;
+      border-radius: 20px;
+      border: 1px solid #FFE2CA;
+      box-shadow: 0 4px 14px rgba(255, 122, 0, 0.06);
+      text-align: center;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-6px) scale(1.04);
+      box-shadow: 0 10px 25px rgba(255, 122, 0, 0.2);
+    }
+
+    .card-emoji {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #FF6B00;
+      margin-bottom: 8px;
+      word-break: keep-all;
+    }
+
+    .card-desc {
+      font-size: 0.95rem;
+      color: #666666;
+      word-break: keep-all;
+      line-height: 1.5;
+    }
+
+    /* 5. 공감 버튼 영역 */
+    .like-section {
+      text-align: center;
+      padding: 28px 20px 40px;
+    }
+
+    .like-button {
+      background: linear-gradient(135deg, #FF8A00 0%, #FF6000 100%);
+      color: #FFFFFF;
+      border: none;
+      font-size: 1.25rem;
+      font-weight: 700;
+      padding: 16px 36px;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(255, 96, 0, 0.35);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      user-select: none;
+    }
+
+    .like-button:active {
+      transform: scale(0.95);
+      box-shadow: 0 3px 10px rgba(255, 96, 0, 0.25);
+    }
+
+    .like-counter {
+      background: #FFFFFF;
+      color: #FF6000;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .footer-note {
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: #888888;
+    }
+
+    /* 6. 하단 인사말 */
+    .greeting-message {
+      text-align: center;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #D45500;
+      background: #FFFFFF;
+      padding: 18px 24px;
+      border-radius: 18px;
+      border: 1px dashed #FF9E4A;
+      margin-top: 10px;
+      box-shadow: 0 4px 14px rgba(255, 122, 0, 0.05);
+    }
+
+    /* 7. 손 인식 체험하기 버튼 */
+    .hand-experience-section {
+      text-align: center;
+      margin: 24px 0 16px;
+    }
+
+    .hand-experience-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #FF7A00 0%, #FF9E44 100%);
+      color: #FFFFFF;
+      text-decoration: none;
+      font-size: 1.15rem;
+      font-weight: 700;
+      padding: 16px 36px;
+      border-radius: 50px;
+      box-shadow: 0 8px 24px rgba(255, 122, 0, 0.35);
+      transition: all 0.25s ease;
+      border: none;
+      cursor: pointer;
+    }
+
+    .hand-experience-btn:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 12px 28px rgba(255, 122, 0, 0.45);
+      background: linear-gradient(135deg, #E66E00 0%, #FF8C24 100%);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- 상단 소개 영역 -->
+    <header class="header">
+      <!-- 맑고 투명한 에메랄드빛 제주 바다 풍경 배너 -->
+      <div class="banner-container">
+        <img 
+          src="jeju_beach.jpg" 
+          onerror="this.src='https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80'"
+          alt="맑고 투명한 에메랄드빛 바다와 하얀 모래사장 풍경" 
+          class="banner-img"
+        >
+        <div class="banner-tag">🌊 에메랄드빛 제주 바다</div>
+      </div>
+
+      <!-- 프로필 정보 -->
+      <div class="header-content">
+        <div class="badge-icon">🍊</div>
+        <h1 class="name">홍수경</h1>
+        <p class="intro-line">AI로 다양한 콘텐츠를 만들고, 제주문화와 삶을 기록하고 싶어요.</p>
+      </div>
+    </header>
+
+    <!-- 이 수업을 신청한 이유 -->
+    <section>
+      <h2 class="section-title">✨ 이 수업을 신청한 이유</h2>
+      <div class="reason-box">
+        <p class="reason-text">
+          AI로 창의적이고, 효율적으로 일을 더 편하게 하는 방법이 궁금해서
+        </p>
+      </div>
+    </section>
+
+    <!-- 나의 관심사 영역 -->
+    <section class="interests-container">
+      <h2 class="section-title">💡 나의 관심사</h2>
+      <div class="cards-grid">
+        <!-- 관심사 1: AI 디지털교육 및 기술 -->
+        <div class="card">
+          <div class="card-emoji">🤖</div>
+          <h3 class="card-title">AI 디지털교육 & 기술</h3>
+          <p class="card-desc">새로운 AI 기술을 배우고 교육에 즐겁게 활용하는 방법</p>
+        </div>
+
+        <!-- 관심사 2: 인문학 -->
+        <div class="card">
+          <div class="card-emoji">📚</div>
+          <h3 class="card-title">인문학</h3>
+          <p class="card-desc">사람에 대한 깊은 이해와 제주 문화의 소중한 가치</p>
+        </div>
+
+        <!-- 관심사 3: 평생교육 -->
+        <div class="card">
+          <div class="card-emoji">🌱</div>
+          <h3 class="card-title">평생교육</h3>
+          <p class="card-desc">언제나 배우며 사람들과 함께 꾸준히 성장하는 삶</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 맨 아래 공감 버튼 영역 -->
+    <section class="like-section">
+      <button class="like-button" id="likeBtn">
+        <span>👍 공감</span>
+        <span class="like-counter" id="likeCount">0</span>
+      </button>
+      <p class="footer-note">버튼을 눌러 응원의 마음을 전해 주세요!</p>
+    </section>
+
+    <!-- 맨 아래 인사 문구 -->
+    <div class="greeting-message">
+      🍊 만나서 반갑습니다! 🍊
+    </div>
+
+    <!-- 손 인식 체험하기 버튼 영역 (hand.html 이동) -->
+    <section class="hand-experience-section">
+      <a href="hand.html" class="hand-experience-btn" id="handExpBtn">
+        <span>🖐️ 손 인식 체험하기</span>
+      </a>
+    </section>
+  </div>
+
+  <!-- 자바스크립트: 공감 버튼 클릭 시 숫자 증가 -->
+  <script>
+    let count = 0;
+    const likeBtn = document.getElementById('likeBtn');
+    const likeCountSpan = document.getElementById('likeCount');
+
+    likeBtn.addEventListener('click', function() {
+      count += 1;
+      likeCountSpan.textContent = count;
+    });
+  </script>
+
+</body>
+</html>
